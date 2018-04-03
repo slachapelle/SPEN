@@ -63,7 +63,8 @@ class GradientDescentPredictor(nn.Module):
 		self.T = hyper['T']
 
 		self.dE_dy = DerivativeE_wrt_y(hyper)
-		self.init = Initializer(hyper) # TODO
+		if hyper['init_procedure'] == 'Identity':
+			self.init = Identity()
 		# learnable learning rate. 
 		# TODO: having different lr for each step ?
 		self.lr = Parameter(torch.Tensor([0.1]))
@@ -104,6 +105,15 @@ class GradientDescentPredictor(nn.Module):
 									  size_average=False)
 
 		return loss, y_tab[-1]
+
+class Identity(nn.Module):
+
+	def __init__(self):
+		super(Indentity,self).__init__()
+
+	def forward(self, x):
+
+		return x
 
 
 
