@@ -72,7 +72,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.mode not in []: # List of modes which doesn't require data.
-        data.setupData(args.dataset)
+        data.setupData(args.dataset, local_folder=LOCAL_FOLDER)
 
     if not os.path.exists(args.exp_folder):
     	os.makedirs(args.exp_folder)
