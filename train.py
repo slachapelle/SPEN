@@ -8,7 +8,7 @@ import torch
 from torch.autograd import Variable
 
 from post_training import PostTrainAnalysis
-
+import data_iter
 class TrainLoop(object):
     def __init__(self, model, optimizer, scheduler=None, phases=['train','valid'], stat_list=['loss']):
 
@@ -35,16 +35,29 @@ class TrainLoop(object):
             #self.scheduler.load_state_dict(checkpoint['schefuler'])
             self.stat = checkpoint['stat']
         else:
-            self.epoch = 0 
+            self.epoch = 0
             self.time_elapsed = 0
             self.best_loss = np.inf
             self.best_epoch = 0
             self.patience = model.hyper['patience']
             self.stat = {}
             for phase in self.phases:
-            	self.stat[phase] = {} 
+            	self.stat[phase] = {}
             	for measure in self.stat_list:
     	            self.stat[phase][measure] = []
+        self.train_dataiter = data_iter.FileIter(
+        root_dir             = "/Tmp/sai/train",
+        flist_name           = "train.lst",
+        # cut_off_size         = 400,
+        rgb_mean             = (113, 113, 113),
+        batch_size           = b_size,
+        )
+        self.val_dataiter = data_iter.FileIter(
+        root_dir             = "/Tmp/sai/train",
+        flist_name           = "val.lst",
+        rgb_mean             = (113, 113, 113),
+        batch_size           = b_size,
+        )
 
     def train_model(self, dataloaders):
         """
@@ -64,10 +77,10 @@ class TrainLoop(object):
 
         #-----MAIN LOOP-----#
         num_epochs = self.model.hyper['n_epochs_max']
-        
+
         while self.epoch <= num_epochs and self.patience > 0:
             print 'After {}/{} epochs'.format(self.epoch, num_epochs)
-            print '-' * 10 
+            print '-' * 10
 
             # Each epoch has a training and validation phase
             for phase in self.phases:
@@ -84,8 +97,9 @@ class TrainLoop(object):
                     run_stat[measure] = 0.0
 
                 # Iterate over data.
-                for data in dataloaders[phase]:
-                 
+                self.train_dataiter.reset()
+                for data in self.train_dataiter:
+
                     # casting to default float (will also send data to gpu if necessary)
                     inputs = data['input'].type(self.model.hyper['float'])
                     labels = data['label'].type(self.model.hyper['float'])
@@ -96,7 +110,7 @@ class TrainLoop(object):
 
                     # zero the parameter gradients
                     self.optimizer.zero_grad()
-                    
+
                     # forward
                     out = self.model(inputs)
                     # averaged loss
@@ -108,12 +122,12 @@ class TrainLoop(object):
                     if phase == 'train' and self.epoch>0:
                         loss.backward()
                         self.optimizer.step()
-        
-                    # Accumulate the running statistics 
+
+                    # Accumulate the running statistics
                     # (.data since only need Tensors)
                     # accumulate unaveraged loss
                     run_stat['loss'] += loss.data[0]*labels.size(0)
-                
+
                 # Compute and print the epoch statistics
                 to_print = str(phase)+': '
                 for measure in self.stat_list:
@@ -176,10 +190,10 @@ class TrainLoop(object):
         return self.model
 
     def save_checkpoint(self):
-        """Take a snapshot of the training loop and save it on the 
+        """Take a snapshot of the training loop and save it on the
         EXPERIMENT_FOLDER accessible from any machine."""
         self.time_elapsed = time.time() - self.time_0
-        
+
         checkpoint = {'epoch': self.epoch,
                    'current_model': self.model.state_dict(),
                    'best_model': self.best_model,
@@ -190,8 +204,5 @@ class TrainLoop(object):
                    #'scheduler': self.scheduler.stat_dict(),
                    'stat': self.stat,
                    'time_elapsed': self.time_elapsed}
-        torch.save(checkpoint, 
+        torch.save(checkpoint,
                    self.model.hyper['EXPERIMENT_FOLDER']+'/checkpoint.pkl')
-
-
-        
