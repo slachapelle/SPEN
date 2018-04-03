@@ -103,7 +103,7 @@ class GradientDescentPredictor(nn.Module):
 									  weight=self.weight.view(-1,1,1,1),
 									  size_average=False)
 
-		return loss, torch.round(y_tab[-1])
+		return loss, y_tab[-1]
 
 
 
