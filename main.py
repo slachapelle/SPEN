@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 from torch import optim
 
-from model import GradientDescentPredictor
+from model import GradientDescentPredictor, GDMomentumPredictor
 from train import TrainLoop
 import data 
 from hyper import getDefaultHyper
