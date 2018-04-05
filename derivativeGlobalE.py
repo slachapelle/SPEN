@@ -16,10 +16,10 @@ def computeGlobalE(y, filter1, bias1, filter2, bias2, filter3, bias3):
 		bias3(Variable):
 	"""
 
-	layer1 = F.conv2d(y, filter1, bias=bias1)
+	layer1 = F.conv2d(y, filter1, bias=bias1, padding=2)
 	layer1 = F.softplus(layer1)
 
-	layer2 = F.conv2d(layer1, filter2, bias=bias2)
+	layer2 = F.conv2d(layer1, filter2, bias=bias2, padding=2)
 	layer2 = F.softplus(layer2)
 
 	layer3 = F.conv2d(layer2, filter3, bias=bias3)
