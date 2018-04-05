@@ -30,7 +30,7 @@ class PostTrainAnalysis(object):
         self.model.train(False)
 
         # Initialize statistics 
-        stat_list = ['loss']
+        stat_list = ['loss', 'psnr']
 
         stats = {}
 
@@ -58,11 +58,12 @@ class PostTrainAnalysis(object):
                 # averaged loss
                 out = self.model(inputs)
                 loss, pred = self.model.getLossPred(out,
-                             labels.type(self.model.hyper['long']))
+                             labels)
 
                 # Accumulate the loss and errors
                 # not averaged loss
                 stats[data_mode]['loss'] += loss.data[0]*labels.size(0)
+                stats[data_mode]['psnr'] += computePSNR(pred.data, labels.data)
                 
 
             n = len(self.dataloaders[data_mode].dataset)
@@ -120,3 +121,14 @@ class PostTrainAnalysis(object):
             plt.legend()
             plt.savefig(self.folder+"/Graph_2(Loss).png")
             plt.clf()
+
+def computePSNR(y_pred, y):
+    # y shape: (bs,1,H,W)
+    
+    rmse = torch.mean((torch.sqrt((y_pred - y)**2)),3)
+    rmse = torch.mean(rmse, 2)
+    rmse = torch.mean(rmse,1)
+    log10 = torch.log(1./rmse)/torch.log(torch.Tensor([10.]))
+    psnr = 20*log10
+
+    return torch.sum(psnr) # size: (1,) unaveraged over minibatch
