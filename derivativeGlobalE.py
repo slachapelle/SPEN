@@ -27,7 +27,7 @@ def computeGlobalE(y, filter1, bias1, filter2, bias2, filter3, bias3):
 
 	DNN_y = layer3.squeeze(3).squeeze(2).squeeze(1)
 
-	return  - out # shape (bs,)
+	return  - DNN_y # shape (bs,)
 
 class ComputeDerivativeGlobalE_wrt_y(Function):
 	"""Implement the differentiable operation of taking the derivative of E_global wrt y
@@ -53,7 +53,7 @@ class ComputeDerivativeGlobalE_wrt_y(Function):
 		return y.grad.data
 
 	@staticmethod
-	def backward(cts, output_grad):
+	def backward(ctx, output_grad):
 
 		y, filter1, bias1, filter2, bias2, filter3, bias3 = ctx.saved_tensors
 
