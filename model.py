@@ -156,7 +156,7 @@ class GDMomentumPredictor(nn.Module):
 	"""Encapsulates the whole end-to-end process to compute the loss and the prediction"""
 
 	def __init__(self,hyper):
-		super(GradientDescentPredictor, self).__init__()
+		super(GDMomentumPredictor, self).__init__()
 		self.hyper = hyper
 		self.T = hyper['T']
 		self.momentum = hyper['momentum']
@@ -179,7 +179,7 @@ class GDMomentumPredictor(nn.Module):
 
 	def initParams(self):
 
-		self.initial_velocity.zero_()
+		#self.initial_velocity.zero_()
 
 		for child in self.children():
 			child.initParams()
