@@ -23,7 +23,7 @@ class PostTrainAnalysis(object):
         else:
             self.folder = folder
 
-    def measurePerformance(self,data_modes=['train','valid','test'], save=True):
+    def measurePerformance(self,data_modes=['train','valid'], save=True):
 
         print 'Measuring performance...'
         # Setting the model to evaluation mode
@@ -68,6 +68,7 @@ class PostTrainAnalysis(object):
 
             n = len(self.dataloaders[data_mode].dataset)
             stats[data_mode]['loss'] /= n
+            stats[data_mode]['psnr'] /= n
 
             # Compute and print the epoch statistics
             to_print = str(data_mode)+': '
@@ -86,9 +87,6 @@ class PostTrainAnalysis(object):
             # save in .txt format
             with open(self.folder+'/results.txt','w') as f:
                 f.write(to_save)
-        
-        if misclass:
-            return highly_misclass_np[1:], uncertain_np[1:], inputs.data.cpu().numpy()
 
         return to_save
 
