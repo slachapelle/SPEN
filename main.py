@@ -5,12 +5,14 @@ import os
 import argparse
 
 import numpy as np
+from torch import optim
 
-from model import GradienDescentPredictor
+from model import GradientDescentPredictor
 from train import TrainLoop
 import data 
 from hyper import getDefaultHyper
 from post_training import *
+from utils import *
 
 LOCAL_FOLDER = '/Tmp/lachaseb' # GPU interact with this local hard memory (must be local to the GPU)
 
@@ -33,11 +35,14 @@ def experiment(args):
 
     # data
     dataloaders = data.getLoaders(hyper,
-                                  data_modes=['train','valid','test'])
+                                  data_modes=['train','valid'])
+    print 'train set has ', len(dataloaders['train'].dataset), 'examples'
+    print 'valid set has ', len(dataloaders['valid'].dataset), 'examples'
     # optimizer
     optimizer = eval(hyper['optimizer'])
+
     # train
-    train_loop = TrainLoop(model, optimizer)
+    train_loop = TrainLoop(model, optimizer, phases=['train','valid'])
     model = train_loop.train_model({s:dataloaders[s] for s in ['train','valid']})
     
     # post training analysis
@@ -47,17 +52,34 @@ def experiment(args):
 
     finishing(hyper['EXPERIMENT_FOLDER'])
 
-def finishing(experiment_folder):
-    """Let a marker in the experiment_folder.
-    See finished methods."""
-    with open(experiment_folder+'/finished.txt','w') as f:
-        f.write('This experiment is fully completed.')
+def evaluate(args):
+    hyper = getDefaultHyper(args.model_class,
+                            args.exp_folder,
+                            args.dataset,
+                            resume=True)
 
-def finished(exp_folder):
-    """Verifies if the "finished.txt" marker is present. 
-    See finishing method
-    """
-    return os.path.isfile(exp_folder+'/finished.txt')
+    # model
+    model = eval(hyper['MODEL_CLASS']+'(hyper)')
+
+    # data
+    dataloaders = data.getLoaders(hyper,
+                                  data_modes=['train','valid'])
+    print len(dataloaders['train'])
+    # optimizer
+    optimizer = eval(hyper['optimizer'])
+
+    with open(args.exp_folder+'/checkpoint.pkl', 'rb') as f:
+        checkpoint = torch.load(f)
+
+    model.load_state_dict(checkpoint['current_model'])
+    
+    # post training analysis
+    postTrain = PostTrainAnalysis(model, dataloaders)
+    postTrain.measurePerformance()
+    postTrain.graph()
+
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

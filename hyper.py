@@ -55,7 +55,7 @@ def getDefaultHyper(model_class,exp_folder,dataset, resume=True):
     if model_class == 'GradientDescentPredictor':
         """Setting standards hparams, will be changed in utils.py"""
         #---OPTIMIZATION---#
-        hyper['bs'] = 256
+        hyper['bs'] = 32
         #lr = '0.001' (default)
         #weight_decay=5*10**(-4) (to try)
         hyper['optimizer'] = 'optim.Adam(model.parameters())'
@@ -67,6 +67,8 @@ def getDefaultHyper(model_class,exp_folder,dataset, resume=True):
         hyper['n_epochs_max'] = 1000
 
         #---ARCHITECTURE---#
+        hyper['entropy_decay'] = 0.
+        hyper['momentum'] = 0.25
         hyper['T'] = 3 # number of gradient steps
         hyper['init_procedure'] = 'Identity'
 

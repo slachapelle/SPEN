@@ -8,6 +8,7 @@ import torch
 from torch.autograd import Variable
 
 from post_training import PostTrainAnalysis, computePSNR
+from utils import visualizePredictions
 
 class TrainLoop(object):
     def __init__(self, model, optimizer, scheduler=None, phases=['train','valid'], stat_list=['loss','psnr']):
@@ -146,6 +147,12 @@ class TrainLoop(object):
                 print 'Safety saving...'
                 self.save_checkpoint()
                 since_save = time.time()
+
+            visualizePredictions(inputs.data.cpu().numpy(),
+                                 pred.data.cpu().numpy(), 
+                                 labels.data.cpu().numpy(), 
+                                 self.model.hyper['EXPERIMENT_FOLDER'], 
+                                 nb_ex=5)
 
             self.epoch += 1
             print ''
