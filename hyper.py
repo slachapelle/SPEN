@@ -67,7 +67,31 @@ def getDefaultHyper(model_class,exp_folder,dataset, resume=True):
         hyper['n_epochs_max'] = 1000
 
         #---ARCHITECTURE---#
-        hyper['entropy_decay'] = 0.
+        hyper['entropy_decay'] = 1.
+        hyper['momentum'] = 0.25
+        hyper['T'] = 3 # number of gradient steps
+        hyper['init_procedure'] = 'Identity'
+
+        hyper['norm_data'] = False # TODO: not implemented yet.
+        hyper['shuffle'] = True # DataLoader argument
+
+        saveHyper(hyper)
+    elif model_class == 'GDMomentumPredictor':
+        """Setting standards hparams, will be changed in utils.py"""
+        #---OPTIMIZATION---#
+        hyper['bs'] = 32
+        #lr = '0.001' (default)
+        #weight_decay=5*10**(-4) (to try)
+        hyper['optimizer'] = 'optim.Adam(model.parameters())'
+        hyper['patience'] = 50
+        hyper['time_between_save'] = 20 # in minutes
+        hyper['time_between_save'] *= 60 # convert in seconds
+        hyper['epochs_between_valid'] = 1
+        # Maximal number of epochs of training
+        hyper['n_epochs_max'] = 1000
+
+        #---ARCHITECTURE---#
+        hyper['entropy_decay'] = 1.
         hyper['momentum'] = 0.25
         hyper['T'] = 3 # number of gradient steps
         hyper['init_procedure'] = 'Identity'
