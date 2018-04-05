@@ -14,16 +14,22 @@ class DerivativeGlobalE_wrt_y(nn.Module):
 	"""
 
 	def __init__(self,hyper):
-		super(computeGlobalE,self).__init__()
+		super(DerivativeGlobalE_wrt_y,self).__init__()
 
 		self.hyper = hyper
 		# supposing input image are greyscale
-		self.filter1 = Parameter(torch.Tensor(32, 1, 7, 7))
-		self.bias1 = Parameter(torch.Tensor(32))
-		self.filter2 = Parameter(torch.Tensor(32, 32, 7, 7))
-		self.bias2 = Parameter(torch.Tensor(32))
-		self.filter3 = Parameter(torch.Tensor(1, 32, 1, 1))
-		self.bias3 = Parameter(torch.Tensor(1))
+		self.filter1 = nn.Parameter(torch.Tensor(32, 1, 7, 7))
+		self.bias1 = nn.Parameter(torch.Tensor(32))
+		self.filter2 = nn.Parameter(torch.Tensor(32, 32, 7, 7))
+		self.bias2 = nn.Parameter(torch.Tensor(32))
+		self.filter3 = nn.Parameter(torch.Tensor(1, 32, 1, 1))
+		self.bias3 = nn.Parameter(torch.Tensor(1))
+
+	def initParams(self):
+
+		nn.init.xavier_uniform(self.filter1)
+		nn.init.xavier_uniform(self.filter2)
+		nn.init.xavier_uniform(self.filter3)
 
 	def forward(self, y):
 
@@ -44,21 +50,33 @@ class DerivativeE_wrt_y(nn.Module):
 
 		self.hyper = hyper
 		self.dGlobalE_dy = DerivativeGlobalE_wrt_y(hyper)
-		self.sigma_2 = Parameter(torch.Tensor([1]))
+		self.sigma_2 = nn.Parameter(torch.Tensor([0.]))
+
+	def initParams(self):
+
+		# TODO: init self.sigma_2 ??
+
+		for child in self.children():
+			child.initParams()
 
 	def forward(self,x, y):
 
+		#y = y.unsqueeze(1)
+		#print x.shape, y.shape
+
 		dLocalE_dy = 2*(y - x)
+		dEntropy_dy = torch.log(1 - y + 1e-16) - torch.log(y + 1e-16)
+		#print self.dGlobalE_dy(y).size()
+		dE_dy = dLocalE_dy - 2 * F.softplus(self.sigma_2) * self.dGlobalE_dy(y) + dEntropy_dy
 
-		dE_dy = dLocalE_dy - 2* self.sigma_2 * self.dGlobalE_dy(y)
-
+		#print 'dE_dy size is ', dE_dy.size()
 		return dE_dy
 
 class GradientDescentPredictor(nn.Module):
 	"""Encapsulates the whole end-to-end process to compute the loss and the prediction"""
 
 	def __init__(self,hyper):
-		super(Predictor, self).__init__()
+		super(GradientDescentPredictor, self).__init__()
 		self.hyper = hyper
 		self.T = hyper['T']
 
@@ -67,49 +85,81 @@ class GradientDescentPredictor(nn.Module):
 			self.init = Identity()
 		# learnable learning rate. 
 		# TODO: having different lr for each step ?
-		self.lr = Parameter(torch.Tensor([0.1]))
+		self.lr = nn.Parameter(torch.Tensor([1.]))
 
 		# computing the weights used in the loss weighting
 		# TODO: Set the first weight (t=0) to 0 ?
-		self.weight = Variable(torch.Tensor([ 1.0 / (self.T - t + 1) for t in xrange(T+1)]))
+		self.weight = Variable(torch.Tensor([ 1.0 / (self.T - t + 1) for t in xrange(self.T+1)]))
+		self.weight = self.weight.view(-1,1,1,1,1)
+
+		self.initParams()
+
+	def initParams(self):
+
+		for child in self.children():
+			child.initParams()
 
 	def forward(self, x):
 		# shape of x: (bs, 1, H, W)
-
+		#print 'size of x ', x.size()
 		bs = x.size(0)
+		"""
 		#logit are the unormalized logits
-		logit = self.init(x) # shape (bs,H,W)
+		logit = self.init(x) # shape (bs,1,H,W)
 
-		# shape: (T+1, bs, H, W)
-		y_tab = Variable(torch.zeros(self.T+1,bs, x.size(2), x.size(3)))
+		y_tab = F.sigmoid(logit).unsqueeze(0)
+		"""
 
-		y_tab[0] = F.sigmoid(logit)
+		#TODO: Try the following alternative:
+		
+		# The initialization procedure returns an image with pixels in [0,1],
+		# so it makes sense to use it directly as our initial y value.
+		y_tab = self.init(x).unsqueeze(0)
+
+		# Since we're doing gradient descent on the logit version of y (pre-sigmoid),
+		# we need to find the corresponding logit that yield our initial y.
+		# To do so, we simply apply the inverse of the sigmoid function to y.
+		logit = (torch.log(y_tab) - torch.log(1-y_tab)).squeeze(0)
+		
 
 		for t in xrange(1,self.T+1):
 
-			# See Belanger, Yang and McAllum 2017 for this trick
-			dE_dlogit = y_tab[t-1] * (1 - y_tab[t-1]) * dE_dy(x, y_tab[t-1])
-			logit -= self.lr * dE_dlogit
+			# See Belanger, Yang and McAllum 2017 for this trick 
+			logit = logit.clone() - F.softplus(self.lr) * y_tab[t-1] * (1 - y_tab[t-1]) * self.dE_dy(x, y_tab[t-1])
 
-			y_tab[t] = F.sigmoid(logit)
+			y_tab = torch.cat([y_tab, F.sigmoid(logit).unsqueeze(0)], 0)
 
-		return y_tab
+		return y_tab # shape: (T+1, bs, 1 , H, W)
 
-	def computeLossPred(self, y_tab, y_gt):
-		# y_tab shape: (T+1, bs, H, W)
-		# y_gt shape: (bs,H,W)
+	def getLossPred(self, y_tab, y_gt):
+		# y_tab shape: (T+1, bs, 1, H, W)
+		# y_gt shape: (bs,1,H,W)
 
+		#print y_gt.size()
+
+		#Use multiple iteration in the loss
+		loss = torch.sum((y_tab - y_gt.unsqueeze(0))**2 * self.weight)
+
+		# use only the last iteration
+		#loss = torch.sum((y_tab[-1] - y_gt)**2)
+						  
+		"""
 		loss = F.binary_cross_entropy(y_tab,
-									  y_gt.unsqueeze(0).expand(y_tab.size(0),-1,-1,-1),
-									  weight=self.weight.view(-1,1,1,1),
+									  y_gt.unsqueeze(0).expand(y_tab.size(0),-1,-1,-1,-1),
+									  weight=self.weight.view(-1,1,1,1,1),
 									  size_average=False)
+		"""
 
 		return loss, y_tab[-1]
 
 class Identity(nn.Module):
 
 	def __init__(self):
-		super(Indentity,self).__init__()
+		super(Identity,self).__init__()
+
+	def initParams(self):
+		# no params to init
+		return None
 
 	def forward(self, x):
 
