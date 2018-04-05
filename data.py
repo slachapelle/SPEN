@@ -5,6 +5,7 @@ import os
 import shutil
 import cPickle
 import zipfile
+import tarfile
 import gzip
 from copy import deepcopy
 import csv
@@ -13,7 +14,8 @@ import pickle
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torchvision.transforms import Compose, ToTensor, ToPILImage, RandomResizedCrop
+
+import data_iter
 
 class Denoising(Dataset):
 
@@ -30,30 +32,84 @@ class Denoising(Dataset):
 
         print 'Loading Denoising '+set_+' set...'
 
-        # TODO: To implement
+        if set_ == 'valid':
+            flist_name = 'val.lst'
+        elif set_ == 'train':
+            flist_name = 'train.lst'
 
-        """
-        if normalize:
-            with open(path+'/catsAndDogs_stat.pkl', 'rb') as f:
-                mean, std = pickle.load(f)
-        """
+        self.path = path+'/train'
+        flist_name = os.path.join(self.path, flist_name)
+        with open(flist_name, 'r') as f:
+            lines = f.readlines()
+
+        self.num_data = len(lines)
+
+        self.x_names = []
+        self.y_names = []
+        for line in lines:
+            _, x_name, y_name = line.strip('\n').split(" ")
+
+            self.x_names += [x_name]
+            self.y_names += [y_name]
+
+        #self.transform = transform
+
+    def _read_img(self, img1_name, label_name):
+
+        data_buffer = np.fromfile(os.path.join(self.path, img1_name), dtype=np.int16)
+        noisy = data_buffer[2:]
+        noisy = noisy.reshape((data_buffer[0], data_buffer[1]))
+        noisy = np.clip(noisy.astype(np.float32)/5000, 0, 1)
+
+        data_buffer = np.fromfile(os.path.join(self.path, label_name), dtype=np.int16)
+        clean = data_buffer[2:]
+        clean = clean.reshape((data_buffer[0], data_buffer[1]))
+        clean = np.clip(clean.astype(np.float32)/5000, 0, 1)
+        sz = clean.shape
+        if (sz[0] > sz[1]):
+            clean = np.swapaxes(clean, 0, 1)
+            noisy = np.swapaxes(noisy, 0, 1)
+
+        if (np.random.uniform(0, 1.0) > 0.5):
+            clean = np.fliplr(clean)
+            noisy = np.fliplr(noisy)
+
+        # print(clean.shape)
+
+        left = int(np.random.uniform(0, 214-129))
+        right = 128 + left
+        up = int(np.random.uniform(0, 160-97))
+        down = 96 + up
+        clean = clean[up:down,left:right]
+        noisy = noisy[up:down,left:right]
+
+        # print(clean.shape)
+
+        clean = np.expand_dims(clean, axis=2)  # (1, c, h, w)
+        clean = np.swapaxes(clean, 0, 2)
+        clean = np.swapaxes(clean, 1, 2)  # (c, h, w)
+        clean = np.expand_dims(clean, axis=0)  # (1, c, h, w)
 
 
-        self.transform = transform
+        noisy = np.expand_dims(noisy, axis=2)  # (1, c, h, w)
+        noisy = np.swapaxes(noisy, 0, 2)
+        noisy = np.swapaxes(noisy, 1, 2)  # (c, h, w)
+        noisy = np.expand_dims(noisy, axis=0)  # (1, c, h, w)
+        return (noisy.squeeze(0).copy(), clean.squeeze(0).copy())
 
     def __len__(self):
 
-        # TODO
+        return self.num_data
 
     def __getitem__(self, idx):
 
-        #if self.transform:
-            
-        #else:
-            
-        # TODO
+        x_name, y_name = self.x_names[idx], self.y_names[idx]
+        x, y = self._read_img(x_name, y_name)
 
-        return sample
+        #print x.shape
+        #print y.shape
+        
+        return {'input': x, 'label': y}
 
 def setupData(dataset, local_folder='/Tmp/lachaseb'):
     """
@@ -63,9 +119,15 @@ def setupData(dataset, local_folder='/Tmp/lachaseb'):
     """
     if not os.path.exists(local_folder+'/data'):
         os.makedirs(local_folder+'/data')
+    if not os.path.exists(local_folder+'/data/proximalnet_data.tar.gz'):
+        print 'Copying data to local disk...'
+        shutil.copy2('/data/lisa/data/seven_scenes/proximalnet_data.tar.gz', local_folder+'/data')
 
-    # TODO: To implement. This function should copy the data to the local_folder. 
-
+    if not os.path.exists(local_folder+'/data/train'):
+        print 'Extracting data...'
+        tar = tarfile.open(local_folder+'/data/proximalnet_data.tar.gz')
+        tar.extractall(path=local_folder+'/data')
+        tar.close()
 
 def getLoaders(hyper, data_modes=['train','valid','test']):
     """ Returns dictionnary of desired DataLoader instances.
