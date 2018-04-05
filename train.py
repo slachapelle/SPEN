@@ -7,10 +7,10 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 
-from post_training import PostTrainAnalysis
+from post_training import PostTrainAnalysis, computePSNR
 
 class TrainLoop(object):
-    def __init__(self, model, optimizer, scheduler=None, phases=['train','valid'], stat_list=['loss']):
+    def __init__(self, model, optimizer, scheduler=None, phases=['train','valid'], stat_list=['loss','psnr']):
 
         self.model = model
         self.optimizer = optimizer
@@ -27,7 +27,7 @@ class TrainLoop(object):
             self.epoch = checkpoint['epoch']
             self.time_elapsed = checkpoint['time_elapsed'] # Time passed in train_model
             self.model.load_state_dict(checkpoint['current_model'])
-            self.best_loss = checkpoint['best_loss']
+            self.best_psnr = checkpoint['best_psnr']
             self.best_epoch = checkpoint['best_epoch']
             self.best_model = checkpoint['best_model']
             self.patience = checkpoint['patience']
@@ -37,7 +37,7 @@ class TrainLoop(object):
         else:
             self.epoch = 0 
             self.time_elapsed = 0
-            self.best_loss = np.inf
+            self.best_psnr = - np.inf
             self.best_epoch = 0
             self.patience = model.hyper['patience']
             self.stat = {}
@@ -101,7 +101,7 @@ class TrainLoop(object):
                     out = self.model(inputs)
                     # averaged loss
                     loss, pred = self.model.getLossPred(out,
-                                 labels.type(self.model.hyper['long']))
+                                 labels)
 
                     # backward + optimize only if in training phase
                     # Don't update params if epoch == 0.
@@ -113,6 +113,7 @@ class TrainLoop(object):
                     # (.data since only need Tensors)
                     # accumulate unaveraged loss
                     run_stat['loss'] += loss.data[0]*labels.size(0)
+                    run_stat['psnr'] += computePSNR(pred.data, labels.data)
                 
                 # Compute and print the epoch statistics
                 to_print = str(phase)+': '
@@ -126,9 +127,9 @@ class TrainLoop(object):
                 # Validation check
                 if phase == 'valid' and\
                    (self.epoch+1) % self.model.hyper['epochs_between_valid'] == 0 \
-                   and self.stat['valid']['loss'][-1] < self.best_loss:
+                   and self.stat['valid']['psnr'][-1] > self.best_psnr:
 
-                    self.best_loss = self.stat['valid']['loss'][-1]
+                    self.best_psnr = self.stat['valid']['psnr'][-1]
                     self.best_model = deepcopy(self.model.state_dict())
                     self.best_epoch = self.epoch
                     self.patience = self.model.hyper['patience']
@@ -138,7 +139,7 @@ class TrainLoop(object):
 
                     self.patience -= 1
 
-            print 'Best valid loss rate: {:.4f}'.format(self.best_loss)
+            print 'Best valid psnr: {:.4f}'.format(self.best_psnr)
             print 'Patience: {}'.format(self.patience)
             # Safety saving
             if time.time() - since_save >= self.model.hyper['time_between_save']:
@@ -160,7 +161,8 @@ class TrainLoop(object):
 
         #-----FINAL PRINT----#
         #loading best paramters
-        self.model.load_state_dict(self.best_model)
+        if 'valid' in self.phases:
+            self.model.load_state_dict(self.best_model)
 
         print 'Final results:'
         # Compute and print the epoch statistics
@@ -180,10 +182,13 @@ class TrainLoop(object):
         EXPERIMENT_FOLDER accessible from any machine."""
         self.time_elapsed = time.time() - self.time_0
         
+        if 'valid' not in self.phases:
+            self.best_model = None
+
         checkpoint = {'epoch': self.epoch,
                    'current_model': self.model.state_dict(),
                    'best_model': self.best_model,
-                   'best_loss': self.best_loss,
+                   'best_psnr': self.best_psnr,
                    'best_epoch': self.best_epoch,
                    'patience': self.patience,
                    'optimizer': self.optimizer.state_dict(),
