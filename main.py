@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 from torch import optim
 
-from model import GradientDescentPredictor, GDMomentumPredictor
+from model import *
 from train import TrainLoop
 import data 
 from hyper import getDefaultHyper
@@ -16,7 +16,7 @@ from utils import *
 
 LOCAL_FOLDER = '/Tmp/lachaseb' # GPU interact with this local hard memory (must be local to the GPU)
 
-def experiment(args):
+def experiment(args, reset_epoch=False):
     """
     Execute a full experiment.
     """
@@ -43,6 +43,8 @@ def experiment(args):
 
     # train
     train_loop = TrainLoop(model, optimizer, phases=['train','valid'])
+    if reset_epoch:
+        train_loop.epoch = 1
     model = train_loop.train_model({s:dataloaders[s] for s in ['train','valid']})
     
     # post training analysis
@@ -51,6 +53,9 @@ def experiment(args):
     postTrain.graph()
 
     finishing(hyper['EXPERIMENT_FOLDER'])
+
+def restartExperiment(args):
+    experiment(args, reset_epoch=True )
 
 def evaluate(args):
     hyper = getDefaultHyper(args.model_class,
