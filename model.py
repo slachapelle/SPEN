@@ -17,10 +17,11 @@ class DerivativeGlobalE_wrt_y(nn.Module):
 		super(DerivativeGlobalE_wrt_y,self).__init__()
 
 		self.hyper = hyper
+		filter_size = hyper['filter_size']
 		# supposing input image are greyscale
-		self.filter1 = nn.Parameter(torch.Tensor(32, 1, 5, 5))
+		self.filter1 = nn.Parameter(torch.Tensor(32, 1, filter_size, filter_size))
 		self.bias1 = nn.Parameter(torch.Tensor(32))
-		self.filter2 = nn.Parameter(torch.Tensor(32, 32, 5, 5))
+		self.filter2 = nn.Parameter(torch.Tensor(32, 32, filter_size, filter_size))
 		self.bias2 = nn.Parameter(torch.Tensor(32))
 		self.filter3 = nn.Parameter(torch.Tensor(1, 32, 1, 1))
 		self.bias3 = nn.Parameter(torch.Tensor(1))
@@ -109,8 +110,6 @@ class GradientDescentPredictor(nn.Module):
 
 		y_tab = F.sigmoid(logit).unsqueeze(0)
 		"""
-
-		#TODO: Try the following alternative:
 		
 		# The initialization procedure returns an image with pixels in [0,1],
 		# so it makes sense to use it directly as our initial y value.
@@ -151,6 +150,101 @@ class GradientDescentPredictor(nn.Module):
 		"""
 
 		return loss, y_tab[-1]
+
+class GDLossLogitPredictor(nn.Module):
+	"""Encapsulates the whole end-to-end process to compute the loss and the prediction"""
+
+	def __init__(self,hyper):
+		super(GDLossLogitPredictor, self).__init__()
+		self.hyper = hyper
+		self.T = hyper['T']
+
+		self.dE_dy = DerivativeE_wrt_y(hyper)
+		if hyper['init_procedure'] == 'Identity':
+			self.init = Identity()
+		# learnable learning rate. 
+		# TODO: having different lr for each step ?
+		self.lr = nn.Parameter(torch.Tensor([1.]*self.T))
+
+		# computing the weights used in the loss weighting
+		# TODO: Set the first weight (t=0) to 0 ?
+		self.weight = Variable(torch.Tensor([ 1.0 / (self.T - t + 1) for t in xrange(self.T+1)]))
+		self.weight = self.weight.view(-1,1,1,1,1)
+
+		self.initParams()
+
+	def initParams(self):
+
+		for child in self.children():
+			child.initParams()
+
+	def forward(self, x):
+		# shape of x: (bs, 1, H, W)
+		#print 'size of x ', x.size()
+		bs = x.size(0)
+		"""
+		#logit are the unormalized logits
+		logit = self.init(x) # shape (bs,1,H,W)
+
+		y_tab = F.sigmoid(logit).unsqueeze(0)
+		"""
+		
+		# The initialization procedure returns an image with pixels in [0,1],
+		# so it makes sense to use it directly as our initial y value.
+		y0 = self.init(x)
+
+		# Since we're doing gradient descent on the logit version of y (pre-sigmoid),
+		# we need to find the corresponding logit that yield our initial y.
+		# To do so, we simply apply the inverse of the sigmoid function to y.
+		logit_tab = (torch.log(y0 + 1e-16) - torch.log(1-y0 + 1e-16)).unsqueeze(0)
+		
+
+		for t in xrange(1,self.T+1):
+
+			y = F.sigmoid(logit_tab[-1])
+			# See Belanger, Yang and McAllum 2017 for this trick 
+			logit = logit_tab[-1] - F.softplus(self.lr[t-1]) * y * (1 - y) * self.dE_dy(x, y)
+
+			logit_tab = torch.cat([logit_tab, logit.unsqueeze(0)], 0)
+
+		return logit_tab # shape: (T+1, bs, 1 , H, W)
+
+	def getLossPred(self, logit_tab, y_gt):
+		# logit_tab shape: (T+1, bs, 1, H, W)
+		# y_gt shape: (bs,1,H,W)
+
+		#print y_gt.size()
+
+		bs = y_gt.size(0)
+
+		#print y_gt
+
+		logit_gt = torch.log(y_gt + 1e-16 ) - torch.log(1-y_gt + 1e-16)
+		#print logit_gt
+		#print (torch.abs(logit_gt.data) == np.inf).any()
+
+		#print 'toto'
+		#Use multiple iteration in the loss
+		"""
+		print torch.max(logit_gt)[0]
+		print torch.max(logit_tab)[0]
+		print torch.max((logit_tab - logit_gt.unsqueeze(0)))[0]
+		print torch.max((logit_tab - logit_gt.unsqueeze(0))**2 )[0]
+		print torch.max((logit_tab - logit_gt.unsqueeze(0))**2 * self.weight)[0]
+		"""
+		loss = torch.mean((logit_tab - logit_gt.unsqueeze(0))**2 * self.weight)
+
+		# use only the last iteration
+		#loss = torch.sum((y_tab[-1] - y_gt)**2)
+						  
+		"""
+		loss = F.binary_cross_entropy(y_tab,
+									  y_gt.unsqueeze(0).expand(y_tab.size(0),-1,-1,-1,-1),
+									  weight=self.weight.view(-1,1,1,1,1),
+									  size_average=False)
+		"""
+
+		return loss*bs, F.sigmoid(logit_tab[-1])
 
 class GDMomentumPredictor(nn.Module):
 	"""Encapsulates the whole end-to-end process to compute the loss and the prediction"""
