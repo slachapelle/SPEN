@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-def visualizePredictions(x, y_pred, y_gt, folder, nb_ex=5):
+def visualizePredictions(x, y_pred, y_gt, folder, name='viz_pred', nb_ex=5):
 
     rnd_idx = np.array(range(x.shape[0]))
     np.random.shuffle(rnd_idx)
@@ -37,7 +37,7 @@ def visualizePredictions(x, y_pred, y_gt, folder, nb_ex=5):
         ax1.set_yticklabels([])
 
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
-    plt.savefig(folder+'/viz_pred.jpg')
+    plt.savefig(folder+'/'+name+'.jpg')
 
     plt.close(fig)
 

@@ -69,7 +69,8 @@ def evaluate(args):
     # data
     dataloaders = data.getLoaders(hyper,
                                   data_modes=['train','valid'])
-    print len(dataloaders['train'])
+    print 'train set has ', len(dataloaders['train'].dataset), 'examples'
+    print 'valid set has ', len(dataloaders['valid'].dataset), 'examples'
     # optimizer
     optimizer = eval(hyper['optimizer'])
 

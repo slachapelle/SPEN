@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.autograd import Variable
 
+from utils import *
 
 class PostTrainAnalysis(object):
 
@@ -78,6 +79,13 @@ class PostTrainAnalysis(object):
 
             print to_print
             to_save += '\n'+to_print
+
+        visualizePredictions(inputs.data.cpu().numpy(), 
+                             pred.data.cpu().numpy(), 
+                             labels.data.cpu().numpy(), 
+                             self.folder,
+                             name = 'best_valid', 
+                             nb_ex=5)
 
         if save:
             # save in .pkl format
