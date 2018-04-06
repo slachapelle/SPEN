@@ -31,6 +31,7 @@ def computeGlobalE(y, filter1, bias1, filter2, bias2, filter3, bias3):
 
 class ComputeDerivativeGlobalE_wrt_y(Function):
 	"""Implement the differentiable operation of taking the derivative of E_global wrt y
+	TODO: Might be more efficient? 
 	"""
 
 	@staticmethod
@@ -54,6 +55,7 @@ class ComputeDerivativeGlobalE_wrt_y(Function):
 
 	@staticmethod
 	def backward(ctx, output_grad):
+		"""Implements the finite-difference trick to compute the Hessian-vector product"""
 
 		y, filter1, bias1, filter2, bias2, filter3, bias3 = ctx.saved_tensors
 

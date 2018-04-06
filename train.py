@@ -51,8 +51,6 @@ class TrainLoop(object):
         """
         Args:
             dataloaders (dict): Contains train and valid data loaders
-            track_iter (bool): If True, will track and count iterations instead of epochs.
-            num_iter (int): Number of desired iterations. Use iff track_iter is True.
         """
         self.time_0 = time.time() - self.time_elapsed
 
@@ -148,6 +146,7 @@ class TrainLoop(object):
                 self.save_checkpoint()
                 since_save = time.time()
 
+            # TODO: should do this less often...
             visualizePredictions(inputs.data.cpu().numpy(),
                                  pred.data.cpu().numpy(), 
                                  labels.data.cpu().numpy(), 

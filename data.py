@@ -15,8 +15,6 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-import data_iter
-
 class Denoising(Dataset):
 
     def __init__(self, path, set_, transform=None, normalize=False):
@@ -74,16 +72,12 @@ class Denoising(Dataset):
             clean = np.fliplr(clean)
             noisy = np.fliplr(noisy)
 
-        # print(clean.shape)
-
         left = int(np.random.uniform(0, 214-129))
         right = 128 + left
         up = int(np.random.uniform(0, 160-97))
         down = 96 + up
         clean = clean[up:down,left:right]
         noisy = noisy[up:down,left:right]
-
-        # print(clean.shape)
 
         clean = np.expand_dims(clean, axis=2)  # (1, c, h, w)
         clean = np.swapaxes(clean, 0, 2)
@@ -105,14 +99,12 @@ class Denoising(Dataset):
 
         x_name, y_name = self.x_names[idx], self.y_names[idx]
         x, y = self._read_img(x_name, y_name)
-
-        #print x.shape
-        #print y.shape
         
         return {'input': x, 'label': y}
 
 def setupData(dataset, local_folder='/Tmp/lachaseb'):
-    """
+    """ Copies the data to your local_folder.
+    WARNING: Works only if you're working on MILA's servers.
     Args:
         dataset: 'mnist' or ...
         local_folder (string): path to the GPU local disk.

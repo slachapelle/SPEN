@@ -7,6 +7,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 def visualizePredictions(x, y_pred, y_gt, folder, name='viz_pred', nb_ex=5):
+    """Produces visualization of the predictions"""
 
     rnd_idx = np.array(range(x.shape[0]))
     np.random.shuffle(rnd_idx)

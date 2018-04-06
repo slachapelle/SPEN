@@ -48,7 +48,7 @@ class PostTrainAnalysis(object):
             # Iterate over data.
             for data in self.dataloaders[data_mode]:
                 # casting to default float (will also send data to gpu if necessary)
-                inputs = data['input'].type(self.model.hyper['float']) # TODO: adapt this to new DataLoader
+                inputs = data['input'].type(self.model.hyper['float']) 
                 labels = data['label'].type(self.model.hyper['float'])
 
                 # Wrap data in Variable
@@ -101,8 +101,8 @@ class PostTrainAnalysis(object):
     def graph(self, phases=['train','valid'], which=['loss','psnr']):
         """Given an experiment folder, it produces graphs and saves them.
 
-        Graph_1.png: error rate on the validation set and on the training set
-        Graph_2.png: Training and validation loss
+        Graph_1.png: Training and validation loss
+        Graph_2.png: Training and validation PSNR
         """
         print 'Plotting experiment\'s graphs...' 
 
@@ -122,7 +122,7 @@ class PostTrainAnalysis(object):
             	plt.plot(range(nb_epoch),stat[phase]['loss'], label=phase)
             
             plt.xlabel('Epochs')
-            plt.ylabel('Loss') #TODO: NLL?
+            plt.ylabel('Loss')
             plt.title('Loss')
             plt.legend()
             plt.savefig(self.folder+"/Graph_1(Loss).png")
