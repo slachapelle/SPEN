@@ -137,9 +137,9 @@ class PostTrainAnalysis(object):
 def computePSNR(y_pred, y):
     # y shape: (bs,1,H,W)
     
-    rmse = torch.mean((torch.sqrt((y_pred - y)**2)),3)
+    rmse = torch.mean((y_pred - y)**2,3)
     rmse = torch.mean(rmse, 2)
-    rmse = torch.mean(rmse,1)
+    rmse = torch.sqrt(torch.mean(rmse,1))
     log10 = torch.log(1./rmse)/torch.log(torch.Tensor([10.]))
     psnr = 20*log10
 
