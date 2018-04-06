@@ -90,7 +90,7 @@ class PostTrainAnalysis(object):
 
         return to_save
 
-    def graph(self, phases=['train','valid'], which=['loss']):
+    def graph(self, phases=['train','valid'], which=['loss','psnr']):
         """Given an experiment folder, it produces graphs and saves them.
 
         Graph_1.png: error rate on the validation set and on the training set
@@ -117,7 +117,21 @@ class PostTrainAnalysis(object):
             plt.ylabel('Loss') #TODO: NLL?
             plt.title('Loss')
             plt.legend()
-            plt.savefig(self.folder+"/Graph_2(Loss).png")
+            plt.savefig(self.folder+"/Graph_1(Loss).png")
+            plt.clf()
+        if 'psnr' in which:
+            # Plotting and saving graph2
+            plt.figure(3)
+            ymax = np.max([stat[phase]['psnr'] for phase in phases])
+            plt.grid(True)
+            for phase in phases:
+                plt.plot(range(nb_epoch),stat[phase]['psnr'], label=phase)
+            
+            plt.xlabel('Epochs')
+            plt.ylabel('PSNR')
+            plt.title('PSNR')
+            plt.legend()
+            plt.savefig(self.folder+"/Graph_2(PSNR).png")
             plt.clf()
 
 def computePSNR(y_pred, y):
