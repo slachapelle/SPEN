@@ -118,7 +118,7 @@ class GradientDescentPredictor(nn.Module):
 		# Since we're doing gradient descent on the logit version of y (pre-sigmoid),
 		# we need to find the corresponding logit that yield our initial y.
 		# To do so, we simply apply the inverse of the sigmoid function to y.
-		logit = (torch.log(y_tab) - torch.log(1-y_tab)).squeeze(0)
+		logit = (torch.log(y_tab+ 1e-16) - torch.log(1-y_tab+ 1e-16)).squeeze(0)
 		
 
 		for t in xrange(1,self.T+1):
@@ -298,7 +298,7 @@ class GDMomentumPredictor(nn.Module):
 		# Since we're doing gradient descent on the logit version of y (pre-sigmoid),
 		# we need to find the corresponding logit that yield our initial y.
 		# To do so, we simply apply the inverse of the sigmoid function to y.
-		logit = (torch.log(y_tab) - torch.log(1-y_tab)).squeeze(0)
+		logit = (torch.log(y_tab+ 1e-16) - torch.log(1-y_tab+ 1e-16)).squeeze(0)
 
 		# initialize the velocity state
 		velocity = self.initial_velocity.clone()
