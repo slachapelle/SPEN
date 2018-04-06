@@ -1,4 +1,3 @@
-# TODO: add the entropy term to the energy. (see p.5 of Belanger, Yang and McAllum 2017)
 
 import numpy as np
 import torch
@@ -62,19 +61,22 @@ class DerivativeE_wrt_y(nn.Module):
 
 	def forward(self,x, y):
 
-		#y = y.unsqueeze(1)
-		#print x.shape, y.shape
-
+		# The analytical derivative of L2_norm(y - x)**2 
 		dLocalE_dy = 2*(y - x)
+
+		# The analytical derivative of the entropy term See Belanger, Yang and McAllum 2017
 		dEntropy_dy = torch.log(1 - y + 1e-16) - torch.log(y + 1e-16)
-		#print self.dGlobalE_dy(y).size()
+		
 		dE_dy = dLocalE_dy - 2 * F.softplus(self.sigma_2) * self.dGlobalE_dy(y) + self.hyper['entropy_decay']*dEntropy_dy
 
-		#print 'dE_dy size is ', dE_dy.size()
+		
 		return dE_dy
 
 class GradientDescentPredictor(nn.Module):
-	"""Encapsulates the whole end-to-end process to compute the loss and the prediction"""
+	"""Encapsulates the whole end-to-end process to compute the loss and the prediction
+	Energy minimization: GD on logits. See Belanger, Yang and McAllum 2017
+	Loss: MSE on y
+	"""
 
 	def __init__(self,hyper):
 		super(GradientDescentPredictor, self).__init__()
@@ -85,7 +87,6 @@ class GradientDescentPredictor(nn.Module):
 		if hyper['init_procedure'] == 'Identity':
 			self.init = Identity()
 		# learnable learning rate. 
-		# TODO: having different lr for each step ?
 		self.lr = nn.Parameter(torch.Tensor([1.]*self.T))
 
 		# computing the weights used in the loss weighting
@@ -102,15 +103,9 @@ class GradientDescentPredictor(nn.Module):
 
 	def forward(self, x):
 		# shape of x: (bs, 1, H, W)
-		#print 'size of x ', x.size()
-		bs = x.size(0)
-		"""
-		#logit are the unormalized logits
-		logit = self.init(x) # shape (bs,1,H,W)
 
-		y_tab = F.sigmoid(logit).unsqueeze(0)
-		"""
-		
+		bs = x.size(0)
+
 		# The initialization procedure returns an image with pixels in [0,1],
 		# so it makes sense to use it directly as our initial y value.
 		y_tab = self.init(x).unsqueeze(0)
@@ -120,7 +115,6 @@ class GradientDescentPredictor(nn.Module):
 		# To do so, we simply apply the inverse of the sigmoid function to y.
 		logit = (torch.log(y_tab+ 1e-16) - torch.log(1-y_tab+ 1e-16)).squeeze(0)
 		
-
 		for t in xrange(1,self.T+1):
 
 			# See Belanger, Yang and McAllum 2017 for this trick 
@@ -134,25 +128,23 @@ class GradientDescentPredictor(nn.Module):
 		# y_tab shape: (T+1, bs, 1, H, W)
 		# y_gt shape: (bs,1,H,W)
 
-		#print y_gt.size()
-
-		#Use multiple iteration in the loss
+		#Use all weighted iterations in the loss
 		loss = torch.sum((y_tab - y_gt.unsqueeze(0))**2 * self.weight)
-
-		# use only the last iteration
-		#loss = torch.sum((y_tab[-1] - y_gt)**2)
-						  
-		"""
-		loss = F.binary_cross_entropy(y_tab,
-									  y_gt.unsqueeze(0).expand(y_tab.size(0),-1,-1,-1,-1),
-									  weight=self.weight.view(-1,1,1,1,1),
-									  size_average=False)
-		"""
 
 		return loss, y_tab[-1]
 
+"""
+loss = F.binary_cross_entropy(y_tab,
+							  y_gt.unsqueeze(0).expand(y_tab.size(0),-1,-1,-1,-1),
+							  weight=self.weight.view(-1,1,1,1,1),
+							  size_average=False)
+"""
+
 class GDLossLogitPredictor(nn.Module):
-	"""Encapsulates the whole end-to-end process to compute the loss and the prediction"""
+	"""Encapsulates the whole end-to-end process to compute the loss and the prediction
+	Energy minimization: GD on logits. See Belanger, Yang and McAllum 2017
+	Loss: MSE on logits
+	"""
 
 	def __init__(self,hyper):
 		super(GDLossLogitPredictor, self).__init__()
@@ -162,8 +154,8 @@ class GDLossLogitPredictor(nn.Module):
 		self.dE_dy = DerivativeE_wrt_y(hyper)
 		if hyper['init_procedure'] == 'Identity':
 			self.init = Identity()
+
 		# learnable learning rate. 
-		# TODO: having different lr for each step ?
 		self.lr = nn.Parameter(torch.Tensor([1.]*self.T))
 
 		# computing the weights used in the loss weighting
@@ -180,14 +172,8 @@ class GDLossLogitPredictor(nn.Module):
 
 	def forward(self, x):
 		# shape of x: (bs, 1, H, W)
-		#print 'size of x ', x.size()
-		bs = x.size(0)
-		"""
-		#logit are the unormalized logits
-		logit = self.init(x) # shape (bs,1,H,W)
 
-		y_tab = F.sigmoid(logit).unsqueeze(0)
-		"""
+		bs = x.size(0)
 		
 		# The initialization procedure returns an image with pixels in [0,1],
 		# so it makes sense to use it directly as our initial y value.
@@ -213,41 +199,19 @@ class GDLossLogitPredictor(nn.Module):
 		# logit_tab shape: (T+1, bs, 1, H, W)
 		# y_gt shape: (bs,1,H,W)
 
-		#print y_gt.size()
-
 		bs = y_gt.size(0)
 
-		#print y_gt
-
 		logit_gt = torch.log(y_gt + 1e-16 ) - torch.log(1-y_gt + 1e-16)
-		#print logit_gt
-		#print (torch.abs(logit_gt.data) == np.inf).any()
-
-		#print 'toto'
-		#Use multiple iteration in the loss
-		"""
-		print torch.max(logit_gt)[0]
-		print torch.max(logit_tab)[0]
-		print torch.max((logit_tab - logit_gt.unsqueeze(0)))[0]
-		print torch.max((logit_tab - logit_gt.unsqueeze(0))**2 )[0]
-		print torch.max((logit_tab - logit_gt.unsqueeze(0))**2 * self.weight)[0]
-		"""
+		
 		loss = torch.mean((logit_tab - logit_gt.unsqueeze(0))**2 * self.weight)
-
-		# use only the last iteration
-		#loss = torch.sum((y_tab[-1] - y_gt)**2)
-						  
-		"""
-		loss = F.binary_cross_entropy(y_tab,
-									  y_gt.unsqueeze(0).expand(y_tab.size(0),-1,-1,-1,-1),
-									  weight=self.weight.view(-1,1,1,1,1),
-									  size_average=False)
-		"""
 
 		return loss*bs, F.sigmoid(logit_tab[-1])
 
 class GDMomentumPredictor(nn.Module):
-	"""Encapsulates the whole end-to-end process to compute the loss and the prediction"""
+	"""Encapsulates the whole end-to-end process to compute the loss and the prediction
+	Energy minimization: GD+Momentum on logits. See Belanger, Yang and McAllum 2017
+	Loss: MSE on y
+	"""
 
 	def __init__(self,hyper):
 		super(GDMomentumPredictor, self).__init__()
@@ -259,9 +223,9 @@ class GDMomentumPredictor(nn.Module):
 		if hyper['init_procedure'] == 'Identity':
 			self.init = Identity()
 
+		# learnable initial velocity
 		self.initial_velocity = nn.Parameter(torch.Tensor(96,128))
 		# learnable learning rate. 
-		# TODO: having different lr for each step ?
 		self.lr = nn.Parameter(torch.Tensor([1.]*self.T))
 
 		# computing the weights used in the loss weighting
@@ -280,16 +244,8 @@ class GDMomentumPredictor(nn.Module):
 
 	def forward(self, x):
 		# shape of x: (bs, 1, H, W)
-		#print 'size of x ', x.size()
+		
 		bs = x.size(0)
-		"""
-		#logit are the unormalized logits
-		logit = self.init(x) # shape (bs,1,H,W)
-
-		y_tab = F.sigmoid(logit).unsqueeze(0)
-		"""
-
-		#TODO: Try the following alternative:
 		
 		# The initialization procedure returns an image with pixels in [0,1],
 		# so it makes sense to use it directly as our initial y value.
@@ -306,10 +262,11 @@ class GDMomentumPredictor(nn.Module):
 
 		for t in xrange(1,self.T+1):
 
+			# See Belanger, Yang and McAllum 2017 for this trick 
+
 			velocity = self.momentum * velocity.clone() \
 			           - F.softplus(self.lr[t-1]) * y_tab[t-1] * (1 - y_tab[t-1]) * self.dE_dy(x, y_tab[t-1])
 
-			# See Belanger, Yang and McAllum 2017 for this trick 
 			logit = logit.clone() + velocity
 
 			y_tab = torch.cat([y_tab, F.sigmoid(logit).unsqueeze(0)], 0)
@@ -320,25 +277,16 @@ class GDMomentumPredictor(nn.Module):
 		# y_tab shape: (T+1, bs, 1, H, W)
 		# y_gt shape: (bs,1,H,W)
 
-		#print y_gt.size()
-
 		#Use multiple iteration in the loss
 		loss = torch.sum((y_tab - y_gt.unsqueeze(0))**2 * self.weight)
 
-		# use only the last iteration
-		#loss = torch.sum((y_tab[-1] - y_gt)**2)
-						  
-		"""
-		loss = F.binary_cross_entropy(y_tab,
-									  y_gt.unsqueeze(0).expand(y_tab.size(0),-1,-1,-1,-1),
-									  weight=self.weight.view(-1,1,1,1,1),
-									  size_average=False)
-		"""
 
 		return loss, y_tab[-1]
 
 class Identity(nn.Module):
-
+	"""An very simple initialization procedure.
+	It simply initializes y0 to the value of x.
+	"""
 	def __init__(self):
 		super(Identity,self).__init__()
 
