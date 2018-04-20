@@ -75,7 +75,6 @@ def getDefaultHyper(model_class,exp_folder,dataset, resume=True):
         hyper['norm_data'] = False # TODO: not implemented yet.
         hyper['shuffle'] = True # DataLoader argument
 
-        saveHyper(hyper)
     elif model_class == 'GDMomentumPredictor':
         """Setting standards hparams, will be changed in utils.py"""
         #---OPTIMIZATION---#
@@ -99,8 +98,6 @@ def getDefaultHyper(model_class,exp_folder,dataset, resume=True):
 
         hyper['norm_data'] = False # TODO: not implemented yet.
         hyper['shuffle'] = True # DataLoader argument
-
-        saveHyper(hyper)
 
     elif model_class == 'GDLossLogitPredictor':
         """Setting standards hparams, will be changed in utils.py"""
@@ -126,8 +123,32 @@ def getDefaultHyper(model_class,exp_folder,dataset, resume=True):
         hyper['norm_data'] = False # TODO: not implemented yet.
         hyper['shuffle'] = True # DataLoader argument
 
-        saveHyper(hyper)
-    
+    elif model_class == 'ConvInit':
+        """Setting standards hparams, will be changed in utils.py"""
+        #---OPTIMIZATION---#
+        hyper['bs'] = 32
+        #lr = '0.001' (default)
+        #weight_decay=5*10**(-4) (to try)
+        hyper['optimizer'] = 'optim.Adam(model.parameters())'
+        hyper['patience'] = 50
+        hyper['time_between_save'] = 20 # in minutes
+        hyper['time_between_save'] *= 60 # convert in seconds
+        hyper['epochs_between_valid'] = 1
+        # Maximal number of epochs of training
+        hyper['n_epochs_max'] = 1000
+
+        #---ARCHITECTURE---#
+        hyper['active_func'] = 'F.relu'
+        hyper['ker_size'] = 5
+        hyper['nb_feat_map'] = 10
+        hyper['nb_hid_layer'] = 10
+        hyper['bn'] = True # batchnorm
+
+        hyper['norm_data'] = False # TODO: not implemented yet.
+        hyper['shuffle'] = True # DataLoader argument
+
+    saveHyper(hyper)
+
     return hyper
 
 def saveHyper(hyper):

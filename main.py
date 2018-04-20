@@ -84,9 +84,6 @@ def evaluate(args):
     postTrain.measurePerformance()
     postTrain.graph()
 
-
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Running mode for the program
