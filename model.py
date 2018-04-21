@@ -1,3 +1,5 @@
+import pickle 
+import string
 
 import numpy as np
 import torch
@@ -86,7 +88,26 @@ class GradientDescentPredictor(nn.Module):
         self.dE_dy = DerivativeE_wrt_y(hyper)
         if hyper['init_procedure'] == 'Identity':
             self.init = Identity()
-        # learnable learning rate. 
+        if hyper['init_procedure'] == 'ConvInit':
+            
+            if hyper['pre_train'] is not None:
+
+                with open(hyper['pre_train']+'/hyper.pkl','rb') as f:
+                    hyper_init = pickle.load(f)
+                self.init = ConvInit(hyper_init)
+
+                with open(hyper['pre_train']+'/checkpoint.pkl','rb') as f:
+                    best_model = torch.load(f)['best_model']
+                self.init.load_state_dict(best_model)
+
+                if hyper['freeze']:
+                    for param in self.init.parameters():
+                        param.require_grad = False
+
+            else:
+                self.init = ConvInit(hyper)
+
+        # learnable learning rate.
         self.lr = nn.Parameter(torch.Tensor([1.]*self.T))
 
         # computing the weights used in the loss weighting
@@ -109,6 +130,8 @@ class GradientDescentPredictor(nn.Module):
         # The initialization procedure returns an image with pixels in [0,1],
         # so it makes sense to use it directly as our initial y value.
         y_tab = self.init(x).unsqueeze(0)
+        if isinstance(self.init, ConvInit):
+            y_tab = F.sigmoid(y_tab)
 
         # Since we're doing gradient descent on the logit version of y (pre-sigmoid),
         # we need to find the corresponding logit that yield our initial y.
@@ -349,6 +372,8 @@ class ConvInit(nn.Module):
             if self.bn:
                 self.BNs.append(nn.BatchNorm2d(1))
 
+        self.initParams()
+
     def initParams(self):
 
         if self.active_func == F.relu:
@@ -359,10 +384,11 @@ class ConvInit(nn.Module):
             activ = 'sigmoid'
 
         for name, param in self.named_parameters():
-            if string.find(name,'weight') != -1:
+            if string.find(name,'weight') != -1 and string.find(name,'layers') != -1:
+                print name, param.size()
                 nn.init.xavier_uniform(param, gain=nn.init.calculate_gain(activ))
             elif string.find(name,'bias') != -1:
-                param.zero_()
+                param.data.zero_()
 
     def forward(self, x):
 
