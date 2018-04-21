@@ -5,8 +5,10 @@ import pickle
 
 import numpy as np
 import torch
+from torch.nn import functional as F
 from torch.autograd import Variable
 
+from model import GradientDescentPredictor
 from post_training import PostTrainAnalysis, computePSNR
 from utils import visualizePredictions
 
@@ -18,6 +20,11 @@ class TrainLoop(object):
         #self.scheduler = scheduler
         self.phases = phases
         self.stat_list = stat_list
+
+        if isinstance(model, GradientDescentPredictor):
+            self.stat_list += ['sigma_2']
+            for t in xrange(model.T):
+                self.stat_list += ['lr'+str(t)]
 
         if os.path.isfile(self.model.hyper['EXPERIMENT_FOLDER']+\
                                                         '/checkpoint.pkl'):
@@ -113,10 +120,19 @@ class TrainLoop(object):
                     # accumulate unaveraged loss
                     run_stat['loss'] += loss.data[0]*labels.size(0)
                     run_stat['psnr'] += computePSNR(pred.data, labels.data)
+
+                    if 'sigma_2' in self.stat_list:
+                        lrs, sigma_2 = trackEnergyParams(self.model)
+                        run_stat['sigma_2'] += sigma_2*inputs.size(0)
+                        for t in xrange(self.model.T):
+                            run_stat['lr'+str(t)] += lrs[t]*inputs.size(0)
+                            
+
                 
                 # Compute and print the epoch statistics
                 to_print = str(phase)+': '
                 for measure in self.stat_list:
+                    
                     self.stat[phase][measure] += [run_stat[measure] / n[phase]]
                     to_print += measure+\
                                 ': {:.4f} '.format(self.stat[phase][measure][-1])
@@ -203,6 +219,16 @@ class TrainLoop(object):
                    'time_elapsed': self.time_elapsed}
         torch.save(checkpoint, 
                    self.model.hyper['EXPERIMENT_FOLDER']+'/checkpoint.pkl')
+
+def trackEnergyParams(model):
+
+    lr = F.softplus(model.lr)
+    sigma_2 = F.softplus(model.dE_dy.sigma_2)
+    lrs = []
+    for t in xrange(model.T):
+        lrs += [lr[t].data[0]]
+
+    return lrs, sigma_2.data[0]
 
 
         

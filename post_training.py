@@ -142,13 +142,47 @@ class PostTrainAnalysis(object):
             plt.savefig(self.folder+"/Graph_2(PSNR).png")
             plt.clf()
 
+        if 'sigma_2' in which:
+            plt.figure(3)
+            ymax = np.max(stat['valid']['sigma_2'])
+            plt.grid(True)
+            
+            plt.plot(range(nb_epoch),stat['valid']['sigma_2'], label='sigma_2')
+            plt.xlabel('Epochs')
+            plt.ylabel('sigma_2')
+            plt.title('Sigma_2 through training')
+            plt.legend()
+            plt.savefig(self.folder+"/Graph_3(sigma_2).png")
+            plt.clf()
+
+            plt.figure(3)
+            ymax = np.max([stat['valid']['lr'+str(t)] for t in xrange(self.model.T)])
+            plt.grid(True)
+            
+            for t in xrange(self.model.T):
+                plt.plot(range(nb_epoch),stat['valid']['lr'+str(t)], label='lr'+str(t+1))
+
+            plt.xlabel('Epochs')
+            plt.ylabel('Learning rates')
+            plt.title('Learning rates through training')
+            plt.legend()
+            plt.savefig(self.folder+"/Graph_4(lrs).png")
+            plt.clf()
+
+
+
+
 def computePSNR(y_pred, y):
     # y shape: (bs,1,H,W)
     
     rmse = torch.mean((y_pred - y)**2,3)
     rmse = torch.mean(rmse, 2)
     rmse = torch.sqrt(torch.mean(rmse,1))
-    log10 = torch.log(1./rmse)/torch.log(torch.Tensor([10.]))
-    psnr = 20*log10
+    log_10 = log10(rmse)
+    psnr = -20*log_10
 
     return torch.sum(psnr) # size: (1,) unaveraged over minibatch
+
+def log10(x):
+
+    return torch.log(x) / torch.log(torch.Tensor([10.]))
