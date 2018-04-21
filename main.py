@@ -50,7 +50,11 @@ def experiment(args, reset_epoch=False):
     # post training analysis
     postTrain = PostTrainAnalysis(model, dataloaders)
     postTrain.measurePerformance()
-    postTrain.graph()
+
+    which = ['loss','psnr']
+    if 'sigma_2' in train_loop.stat_list:
+        which += ['sigma_2']
+    postTrain.graph(which=which)
 
     finishing(hyper['EXPERIMENT_FOLDER'])
 
@@ -77,12 +81,38 @@ def evaluate(args):
     with open(args.exp_folder+'/checkpoint.pkl', 'rb') as f:
         checkpoint = torch.load(f)
 
-    model.load_state_dict(checkpoint['current_model'])
+    model.load_state_dict(checkpoint['best_model'])
     
     # post training analysis
     postTrain = PostTrainAnalysis(model, dataloaders)
     postTrain.measurePerformance()
-    postTrain.graph()
+
+    which = ['loss','psnr']
+    if isinstance(model, GradientDescentPredictor):
+        which += ['sigma_2']
+    postTrain.graph(which=which)
+
+def trainVStest(args):
+
+    hyper = getDefaultHyper(args.model_class,
+                            args.exp_folder,
+                            args.dataset,
+                            resume=True)
+
+    # data
+    dataloaders = data.getLoaders(hyper,
+                                  data_modes=['train','valid'])
+    train_list = dataloaders['train'].dataset.x_names
+    train_set = set(train_list)
+    valid_list = dataloaders['valid'].dataset.x_names
+    valid_set = set(valid_list)
+
+    print 'size train list: ', len(train_list)
+    print 'size train set: ', len(train_set)
+    print 'size valid list: ', len(valid_list)
+    print 'size valid set: ', len(valid_set)
+    print 'size intersection: ', len(train_set.intersection(valid_set))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
