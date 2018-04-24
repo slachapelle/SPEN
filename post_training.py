@@ -125,6 +125,7 @@ class PostTrainAnalysis(object):
             plt.ylabel('Loss')
             plt.title('Loss')
             plt.legend()
+            plt.yscale('log')
             plt.savefig(self.folder+"/Graph_1(Loss).png")
             plt.clf()
         if 'psnr' in which:
@@ -168,8 +169,6 @@ class PostTrainAnalysis(object):
             plt.legend()
             plt.savefig(self.folder+"/Graph_4(lrs).png")
             plt.clf()
-
-
 
 
 def computePSNR(y_pred, y):
