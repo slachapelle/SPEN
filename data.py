@@ -17,7 +17,7 @@ from torch.utils.data import Dataset, DataLoader
 
 class Denoising(Dataset):
 
-    def __init__(self, path, set_, transform=None, normalize=False):
+    def __init__(self, path, set_, transform=None, normalize=False, data_augment=True):
         """
         Args:
             path (string): Path to a folder containing the 
@@ -50,6 +50,7 @@ class Denoising(Dataset):
             self.x_names += [x_name]
             self.y_names += [y_name]
 
+        self.data_augment = data_augment
         #self.transform = transform
 
     def _read_img(self, img1_name, label_name):
@@ -68,14 +69,21 @@ class Denoising(Dataset):
             clean = np.swapaxes(clean, 0, 1)
             noisy = np.swapaxes(noisy, 0, 1)
 
-        if (np.random.uniform(0, 1.0) > 0.5):
-            clean = np.fliplr(clean)
-            noisy = np.fliplr(noisy)
+        if self.data_augment:
+            if (np.random.uniform(0, 1.0) > 0.5):
+                clean = np.fliplr(clean)
+                noisy = np.fliplr(noisy)
 
-        left = int(np.random.uniform(0, 214-129))
-        right = 128 + left
-        up = int(np.random.uniform(0, 160-97))
-        down = 96 + up
+            left = int(np.random.uniform(0, 214-129))
+            right = 128 + left
+            up = int(np.random.uniform(0, 160-97))
+            down = 96 + up
+        else:
+            left = 42
+            right = 128 + left
+            up = 63
+            down = 96 + up
+
         clean = clean[up:down,left:right]
         noisy = noisy[up:down,left:right]
 
@@ -121,7 +129,7 @@ def setupData(dataset, local_folder='/Tmp/lachaseb'):
         tar.extractall(path=local_folder+'/data')
         tar.close()
 
-def getLoaders(hyper, data_modes=['train','valid','test']):
+def getLoaders(hyper, data_modes=['train','valid','test'], data_augment=True):
     """ Returns dictionnary of desired DataLoader instances.
     Args:
         hyper (dict): See hyper.py
@@ -132,7 +140,8 @@ def getLoaders(hyper, data_modes=['train','valid','test']):
         for data_mode in data_modes:
             dataset = Denoising('/Tmp/lachaseb/data/',
                                 data_mode,
-                                normalize=hyper['norm_data'] )
+                                normalize=hyper['norm_data'],
+                                data_augment=data_augment)
 
             loader = DataLoader(dataset, batch_size=hyper['bs'], shuffle=hyper['shuffle'])
 
