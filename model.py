@@ -52,7 +52,7 @@ class DerivativeE_wrt_y(nn.Module):
 
         self.hyper = hyper
         self.dGlobalE_dy = DerivativeGlobalE_wrt_y(hyper)
-        self.sigma_2 = nn.Parameter(torch.Tensor([0.]))
+        self.sigma_2 = nn.Parameter(torch.Tensor([25.]))
 
     def initParams(self):
 
@@ -61,10 +61,10 @@ class DerivativeE_wrt_y(nn.Module):
         for child in self.children():
             child.initParams()
 
-    def forward(self,x, y):
+    def forward(self,F_x, y):
 
         # The analytical derivative of L2_norm(y - x)**2 
-        dLocalE_dy = 2*(y - x)
+        dLocalE_dy = 2*(y - F_x)
 
         # The analytical derivative of the entropy term See Belanger, Yang and McAllum 2017
         dEntropy_dy = torch.log(1 - y + 1e-16) - torch.log(y + 1e-16)
@@ -129,10 +129,12 @@ class GradientDescentPredictor(nn.Module):
 
         # The initialization procedure returns an image with pixels in [0,1],
         # so it makes sense to use it directly as our initial y value.
-        y_tab = self.init(x).unsqueeze(0)
+        F_x = self.init(x)
         if isinstance(self.init, ConvInit):
-            y_tab = F.sigmoid(y_tab)
+            F_x = F.sigmoid(F_x)
 
+        y_tab = F_x.unsqueeze(0)
+        
         # Since we're doing gradient descent on the logit version of y (pre-sigmoid),
         # we need to find the corresponding logit that yield our initial y.
         # To do so, we simply apply the inverse of the sigmoid function to y.
@@ -141,7 +143,7 @@ class GradientDescentPredictor(nn.Module):
         for t in xrange(1,self.T+1):
 
             # See Belanger, Yang and McAllum 2017 for this trick 
-            logit = logit.clone() - F.softplus(self.lr[t-1]) * y_tab[t-1] * (1 - y_tab[t-1]) * self.dE_dy(x, y_tab[t-1])
+            logit = logit.clone() - F.softplus(self.lr[t-1]) * y_tab[t-1] * (1 - y_tab[t-1]) * self.dE_dy(F_x, y_tab[t-1])
 
             y_tab = torch.cat([y_tab, F.sigmoid(logit).unsqueeze(0)], 0)
 
@@ -385,7 +387,7 @@ class ConvInit(nn.Module):
 
         for name, param in self.named_parameters():
             if string.find(name,'weight') != -1 and string.find(name,'layers') != -1:
-                print name, param.size()
+                
                 nn.init.xavier_uniform(param, gain=nn.init.calculate_gain(activ))
             elif string.find(name,'bias') != -1:
                 param.data.zero_()

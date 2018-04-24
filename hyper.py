@@ -59,26 +59,26 @@ def getDefaultHyper(model_class,exp_folder,dataset, resume=True):
         #lr = '0.001' (default)
         #weight_decay=5*10**(-4) (to try)
         hyper['optimizer'] = 'optim.Adam(model.parameters())'
-        hyper['patience'] = 50
+        hyper['patience'] = 150
         hyper['time_between_save'] = 20 # in minutes
         hyper['time_between_save'] *= 60 # convert in seconds
         hyper['epochs_between_valid'] = 1
         # Maximal number of epochs of training
-        hyper['n_epochs_max'] = 1000
+        hyper['n_epochs_max'] = 3000
 
         #---ARCHITECTURE---#
         hyper['filter_size'] = 5
-        hyper['entropy_decay'] = 1.
+        hyper['entropy_decay'] = 0
         hyper['T'] = 3 # number of gradient steps
         
         #---Initializer architecture---#
-        hyper['init_procedure'] = 'ConvInit'
+        hyper['init_procedure'] = 'Identity'
         if hyper['init_procedure'] == 'ConvInit':
             # Set pre_train to None if you want to learn the model from scratch
             # Set it to a folder from an experiment if you want a pre_trained instance.
-            hyper['pre_train'] = '/data/milatmp1/lachaseb/SPEN/exp_simple_conv2'
+            hyper['pre_train'] = '/data/milatmp1/lachaseb/SPEN/exp_simple_conv5'
             # Set freeze to True if you don't want to learn the initializer's parameters
-            hyper['freeze'] = True
+            hyper['freeze'] = False
 
             ##---Initializer hparams---##
             # The follwing hyperparams will be used if hyper['pre_train'] == None
@@ -99,25 +99,26 @@ def getDefaultHyper(model_class,exp_folder,dataset, resume=True):
         #lr = '0.001' (default)
         #weight_decay=5*10**(-4) (to try)
         hyper['optimizer'] = 'optim.Adam(model.parameters())'
-        hyper['patience'] = 50
+        hyper['patience'] = 150
         hyper['time_between_save'] = 20 # in minutes
         hyper['time_between_save'] *= 60 # convert in seconds
         hyper['epochs_between_valid'] = 1
         # Maximal number of epochs of training
-        hyper['n_epochs_max'] = 1000
+        hyper['n_epochs_max'] = 3000
 
         #---ARCHITECTURE---#
+        # filter size of the energy function
         hyper['filter_size'] = 7
-        hyper['entropy_decay'] = 1.
+        hyper['entropy_decay'] = 0
         hyper['momentum'] = 0.25
         hyper['T'] = 3 # number of gradient steps
 
         #---Initializer architecture---#
-        hyper['init_procedure'] = 'ConvInit'
+        hyper['init_procedure'] = 'Identity'
         if hyper['init_procedure'] == 'ConvInit':
             # Set pre_train to None if you want to learn the model from scratch
             # Set it to a folder from an experiment if you want a pre_trained instance.
-            hyper['pre_train'] = '/data/milatmp1/lachaseb/SPEN/exp_simple_conv2'
+            hyper['pre_train'] = '/data/milatmp1/lachaseb/SPEN/exp_simple_conv5'
             # Set freeze to True if you don't want to learn the initializer's parameters
             hyper['freeze'] = True
 
